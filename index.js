@@ -12,129 +12,129 @@ const serve = require('./lib/serve');
 const packExternalModules = require('./lib/packExternalModules');
 
 class ServerlessWebpack {
-	constructor(serverless, options) {
-		this.serverless = serverless;
-		this.options = options;
+  constructor(serverless, options) {
+    this.serverless = serverless;
+    this.options = options;
 
-		Object.assign(
-			this,
-			validate,
-			compile,
-			copyFunctionArtifact,
-			wpwatch,
-			cleanup,
-			run,
-			serve,
-			packExternalModules
-		);
+    Object.assign(
+      this,
+      validate,
+      compile,
+      copyFunctionArtifact,
+      wpwatch,
+      cleanup,
+      run,
+      serve,
+      packExternalModules
+    );
 
-		this.commands = {
-			webpack: {
-				usage: 'Bundle with Webpack',
-				lifecycleEvents: [
-					'validate',
-					'compile',
-				],
-				options: {
-					out: {
-						usage: 'Path to output directory',
-						shortcut: 'o',
-					},
-				},
-				commands: {
-					invoke: {
-						usage: 'Run a function locally from the webpack output bundle',
-						lifecycleEvents: [
-							'invoke',
-						],
-						options: {
-							function: {
-								usage: 'Name of the function',
-								shortcut: 'f',
-								required: true,
-							},
-							path: {
-								usage: 'Path to JSON file holding input data',
-								shortcut: 'p',
-							},
-						},
-					},
-					watch: {
-						usage: 'Run a function from the webpack output bundle every time the source is changed',
-						lifecycleEvents: [
-							'watch',
-						],
-						options: {
-							function: {
-								usage: 'Name of the function',
-								shortcut: 'f',
-								required: true,
-							},
-							path: {
-								usage: 'Path to JSON file holding input data',
-								shortcut: 'p',
-							},
-						},
-					},
-					serve: {
-						usage: 'Simulate the API Gateway and serves lambdas locally',
-						lifecycleEvents: [
-							'serve',
-						],
-						options: {
-							port: {
-								usage: 'The local server port',
-								shortcut: 'p',
-							},
-						},
-					},
-				},
-			},
-		};
+    this.commands = {
+      webpack: {
+        usage: 'Bundle with Webpack',
+        lifecycleEvents: [
+          'validate',
+          'compile',
+        ],
+        options: {
+          out: {
+            usage: 'Path to output directory',
+            shortcut: 'o',
+          },
+        },
+        commands: {
+          invoke: {
+            usage: 'Run a function locally from the webpack output bundle',
+            lifecycleEvents: [
+              'invoke',
+            ],
+            options: {
+              function: {
+                usage: 'Name of the function',
+                shortcut: 'f',
+                required: true,
+              },
+              path: {
+                usage: 'Path to JSON file holding input data',
+                shortcut: 'p',
+              },
+            },
+          },
+          watch: {
+            usage: 'Run a function from the webpack output bundle every time the source is changed',
+            lifecycleEvents: [
+              'watch',
+            ],
+            options: {
+              function: {
+                usage: 'Name of the function',
+                shortcut: 'f',
+                required: true,
+              },
+              path: {
+                usage: 'Path to JSON file holding input data',
+                shortcut: 'p',
+              },
+            },
+          },
+          serve: {
+            usage: 'Simulate the API Gateway and serves lambdas locally',
+            lifecycleEvents: [
+              'serve',
+            ],
+            options: {
+              port: {
+                usage: 'The local server port',
+                shortcut: 'p',
+              },
+            },
+          },
+        },
+      },
+    };
 
-		this.hooks = {
-				'before:deploy:createDeploymentArtifacts': () => BbPromise.bind(this)
-				.then(this.validate)
-				.then(this.compile)
-				.then(this.packExternalModules),
+    this.hooks = {
+      'before:deploy:createDeploymentArtifacts': () => BbPromise.bind(this)
+        .then(this.validate)
+        .then(this.compile)
+        .then(this.packExternalModules),
 
-			'after:deploy:createDeploymentArtifacts': () => BbPromise.bind(this)
-			.then(this.cleanup),
+      'after:deploy:createDeploymentArtifacts': () => BbPromise.bind(this)
+        .then(this.cleanup),
 
-			'before:deploy:function:packageFunction': () => BbPromise.bind(this)
-			.then(this.validate)
-			.then(this.compile)
-			.then(this.packExternalModules),
+      'before:deploy:function:packageFunction': () => BbPromise.bind(this)
+         .then(this.validate)
+         .then(this.compile)
+         .then(this.packExternalModules),
 
-			'after:deploy:function:packageFunction': () => BbPromise.bind(this)
-			.then(this.copyFunctionArtifact),
+      'after:deploy:function:packageFunction': () => BbPromise.bind(this)
+         .then(this.copyFunctionArtifact),
+ 
+      'webpack:validate': () => BbPromise.bind(this)
+        .then(this.validate),
 
-			'webpack:validate': () => BbPromise.bind(this)
-			.then(this.validate),
+      'webpack:compile': () => BbPromise.bind(this)
+        .then(this.compile)
+        .then(this.packExternalModules),
 
-			'webpack:compile': () => BbPromise.bind(this)
-			.then(this.compile)
-			.then(this.packExternalModules),
+      'webpack:invoke:invoke': () => BbPromise.bind(this)
+        .then(this.validate)
+        .then(this.compile)
+        .then(this.run)
+        .then(out => this.serverless.cli.consoleLog(out)),
 
-			'webpack:invoke:invoke': () => BbPromise.bind(this)
-			.then(this.validate)
-			.then(this.compile)
-			.then(this.run)
-			.then(out => this.serverless.cli.consoleLog(out)),
+      'webpack:watch:watch': () => BbPromise.bind(this)
+        .then(this.validate)
+        .then(this.watch),
 
-		'webpack:watch:watch': () => BbPromise.bind(this)
-			.then(this.validate)
-			.then(this.watch),
+      'webpack:serve:serve': () => BbPromise.bind(this)
+        .then(this.validate)
+        .then(this.serve),
 
-			'webpack:serve:serve': () => BbPromise.bind(this)
-			.then(this.validate)
-			.then(this.serve),
-
-			'before:offline:start': () => BbPromise.bind(this)
-			.then(this.validate)
-			.then(this.wpwatch),
-	};
-	}
+      'before:offline:start': () => BbPromise.bind(this)
+        .then(this.validate)
+        .then(this.wpwatch),
+    };
+  }
 }
 
 module.exports = ServerlessWebpack;
